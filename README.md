@@ -1,7 +1,7 @@
 # URL Shortener
 
-![Build Status](https://github.com/n3rwus/url-shortener/workflows/CI/badge.svg)
-![Tests](https://github.com/n3rwus/url-shortener/workflows/Tests/badge.svg)
+![Build Status]([https://github.com/n3rwus/url-shortener/workflows/Tests/badge.svg](https://github.com/n3rwus/url-shortener/workflows/Python-app/badge.svg))
+![Tests](https://github.com/n3rwus/url-shortener/workflows/CI/badge.svg](https://github.com/n3rwus/url-shortener/workflows/Pylint/badge.svg))
 ![Python Version](https://img.shields.io/badge/python-3.8%2B-blue.svg)
 ![Flask Version](https://img.shields.io/badge/flask-2.0%2B-green.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
