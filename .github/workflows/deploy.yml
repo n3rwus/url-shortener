@@ -1,0 +1,26 @@
+name: Deploy FastAPI to Raspberry Pi
+
+on:
+  push:
+    branches:
+      - main  # Deploy only when pushing to the main branch
+
+jobs:
+  deploy:
+    name: Ansible Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 🧾 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🔐 Set up SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: 🛠️ Run Ansible Playbook
+        run: |
+          ansible-playbook deploy.yml -i inventory.ini
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: "False"
