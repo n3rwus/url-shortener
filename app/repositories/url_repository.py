@@ -4,10 +4,8 @@ import time
 import uuid
 from datetime import datetime
 from typing import Optional
-
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
-from sqlmodel import select, Session
-
+from sqlalchemy.orm import Session
 from app.models.models import Urls
 
 
@@ -17,8 +15,7 @@ class UrlsRepository:
         self.db = db
 
     def get_by_short(self, shortened_url: str) -> Optional[Urls]:
-        statement = select(Urls).where(Urls.shortened_url == shortened_url)
-        return self.db.exec(statement).first()
+        return self.db.query(Urls).filter(Urls.shortened_url == shortened_url).first()
 
     def get_by_id(self, url_id: uuid.UUID) -> Optional[Urls]:
         statement = select(Urls).where(Urls.id == url_id)
