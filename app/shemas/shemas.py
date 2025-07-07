@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 import uuid
 from typing import Optional
 
-from pydantic import BaseModel, HttpUrl, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class UrlsBase(BaseModel):
