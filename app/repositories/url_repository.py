@@ -5,19 +5,21 @@ import uuid
 import datetime
 from typing import Optional, List
 
-from pydantic import HttpUrl
+from sqlalchemy import or_
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.orm import Session
 from app.core.logging_config import setup_logger
+from app.core.config import get_settings
 from app.models.models import Urls
 
 logger = setup_logger()
-
+settings = get_settings()
 
 def is_url_expired(url_obj: Urls) -> bool:
     expired = url_obj.valid_until and datetime.datetime.now(datetime.timezone.utc) > url_obj.valid_until
     logger.debug(f"Checked expiration for {url_obj.shortened_url}: Expired={expired}")
     return expired
+
 
 
 class UrlsRepository:
@@ -29,7 +31,10 @@ class UrlsRepository:
         logger.debug(f"Fetching URL by shortened: {shortened_url}")
         return self.db.query(Urls).filter(
             Urls.shortened_url == shortened_url,
-            (Urls.valid_until == None) | (Urls.valid_until > datetime.datetime.now(datetime.timezone.utc))
+            or_(
+                Urls.valid_until == None,
+                Urls.valid_until > datetime.datetime.now(datetime.timezone.utc)
+            )
         ).first()
 
     def get_by_id(self, url_id: uuid.UUID) -> Optional[Urls]:
@@ -39,28 +44,23 @@ class UrlsRepository:
             (Urls.valid_until == None) | (Urls.valid_until > datetime.datetime.now(datetime.timezone.utc))
         ).first()
 
-    def get_by_original(self, original_url: HttpUrl) -> Optional[Urls]:
+    def get_by_original(self, original_url: str) -> Optional[Urls]:
         logger.debug(f"Fetching URL by original: {original_url}")
         return self.db.query(Urls).filter(
             Urls.original_url == original_url,
-            (Urls.valid_until == None) | (Urls.valid_until > datetime.datetime.now(datetime.timezone.utc))
+            or_(
+                Urls.valid_until == None,
+                Urls.valid_until > datetime.datetime.now(datetime.timezone.utc)
+            )
         ).first()
 
-    def create_url(self, original_url: HttpUrl, valid_until: Optional[datetime.datetime] = None) -> Urls:
+    def create_url(self, original_url: str, valid_until: Optional[datetime.datetime] = None) -> Urls:
         logger.info(f"Attempting to create or reuse shortened URL for: {original_url}")
-        existing_url = self.get_by_original(original_url)
 
+        existing_url = self.get_by_original(original_url)
         if existing_url:
-            if existing_url.valid_until is None or existing_url.valid_until > datetime.datetime.now(datetime.timezone.utc):
-                logger.info("Found existing valid URL. Returning it.")
-                return existing_url
-            else:
-                logger.info("Found expired URL. Generating new shortened version.")
-                existing_url.shortened_url = self._generate_unique_short()
-                existing_url.valid_until = valid_until
-                self.db.commit()
-                self.db.refresh(existing_url)
-                return existing_url
+            logger.info(f"Found existing valid URL. Returning with short code: {existing_url.shortened_url}")
+            return existing_url
 
         shortened_url = self._generate_unique_short()
         url_obj = Urls(
@@ -68,15 +68,19 @@ class UrlsRepository:
             shortened_url=shortened_url,
             valid_until=valid_until
         )
+
         try:
             self.db.add(url_obj)
             self.db.commit()
             self.db.refresh(url_obj)
-            logger.info(f"Created new shortened URL: {shortened_url}")
+            logger.info(f"Created new shortened URL with code: {shortened_url}")
             return url_obj
-        except (SQLAlchemyError, IntegrityError) as e:
+        except IntegrityError as e:
             self.db.rollback()
-            logger.error(f"Error creating new URL: {e}")
+            if 'urls_original_url_key' in str(e.orig):
+                logger.warning("URL already exists. Fetching and returning the existing entry.")
+                return self.get_by_original(original_url)
+            logger.error(f"Failed to create shortened URL: {e}")
             raise
 
     def delete_url(self, url_obj: Urls) -> bool:
@@ -117,5 +121,4 @@ class UrlsRepository:
         fallback_code = timestamp + random_fallback
         logger.warning(f"Fallback to timestamp-based code: {fallback_code}")
         return fallback_code
-
 

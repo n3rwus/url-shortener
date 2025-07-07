@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     PORT: int              # ✅ port should be int
     DBNAME: str
     ENV: str = "development"
+    BASE_URL: str = "http://localhost:8000"  # Default for local dev
 
     model_config = SettingsConfigDict(env_file=".env")
 

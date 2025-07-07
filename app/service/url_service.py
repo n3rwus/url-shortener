@@ -1,5 +1,4 @@
 from typing import Optional, List
-from pydantic import HttpUrl
 from datetime import datetime
 import uuid
 
@@ -13,7 +12,7 @@ class UrlsService:
     def __init__(self, repository: UrlsRepository):
         self.repository = repository
 
-    def shorten_url(self, original_url: HttpUrl, valid_until: Optional[datetime] = None) -> Urls:
+    def shorten_url(self, original_url: str, valid_until: Optional[datetime] = None) -> Urls:
         logger.info(f"Service: Shortening URL: {original_url}")
         return self.repository.create_url(original_url, valid_until)
 
@@ -30,7 +29,7 @@ class UrlsService:
         logger.debug(f"Service: Fetching URL by ID: {url_id}")
         return self.repository.get_by_id(url_id)
 
-    def get_url_by_original(self, original_url: HttpUrl) -> Optional[Urls]:
+    def get_url_by_original(self, original_url: str) -> Optional[Urls]:
         logger.debug(f"Service: Fetching URL by original: {original_url}")
         return self.repository.get_by_original(original_url)
 

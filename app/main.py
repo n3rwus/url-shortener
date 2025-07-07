@@ -6,25 +6,25 @@ from app.routes import urls_router
 logger = setup_logger()
 
 def create_app():
-    app = FastAPI(title="URL Shortener API", version="1.0.0")
+    app = FastAPI(
+        title="URL Shortener API",
+        version="0.0.1",
+        servers=[{"url": "http://127.0.0.1:8000"}]
+    )
 
-    # ✅ Allow only your frontend origin(s)
     origins = [
-        "http://localhost:3000",  # local dev (e.g., React)
-        "https://yourfrontend.com",  # deployed frontend
+        "http://localhost:3000",
+        "https://yourfrontend.com",
     ]
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=origins,  # 🔒 restrict to known domains
+        allow_origins=origins,
         allow_credentials=True,
-        allow_methods=["GET", "POST"],  # only the methods you use
+        allow_methods=["GET", "POST"],
         allow_headers=[
-            "Content-Type",  # Essential for POST requests
-            "Authorization",  # If you're using authentication tokens
-            "Accept",  # Common header for indicating the response type
-            "X-Requested-With",  # To support AJAX requests
-            "X-Frame-Options",  # Security measure for framing
+            "Content-Type", "Authorization", "Accept",
+            "X-Requested-With", "X-Frame-Options"
         ],
     )
 
@@ -34,10 +34,3 @@ def create_app():
 
 app = create_app()
 
-@app.get("/")
-async def root():
-    return {"message": "Welcome to the TinyURL-style FastAPI service!"}
-
-@app.get("/health")
-async def health_check():
-    return {"status": "healthy"}

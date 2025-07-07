@@ -8,6 +8,9 @@ from app.db.database import get_db
 from app.repositories.url_repository import UrlsRepository
 from app.service.url_service import UrlsService
 from app.shemas.shemas import UrlsResponse, UrlsCreateRequest
+from app.core.logging_config import setup_logger
+
+logger = setup_logger()
 
 router = APIRouter(tags=["Urls"])
 
@@ -20,7 +23,15 @@ def add_url(url_data: UrlsCreateRequest, service: UrlsService = Depends(get_serv
         original_url=url_data.original_url,
         valid_until=url_data.valid_until
     )
+    if url is None:
+        logger.warning("No URL object returned — cannot validate.")
+        raise HTTPException(
+            status_code=400,
+            detail="A shortened URL for this link already exists"
+        )
+
     return UrlsResponse.model_validate(url)
+
 
 @router.get("/urls", response_model=List[UrlsResponse])
 @timed_cache(seconds=300)
@@ -55,10 +66,13 @@ def check_expiration(shortened: str, service: UrlsService = Depends(get_service)
         raise HTTPException(status_code=404, detail="URL not found")
     return expired
 
-@router.get("/{short_code}")
+@router.get("/{short_code:path}")
 def redirect_short_url(short_code: str, service: UrlsService = Depends(get_service)):
+    if short_code == "favicon.ico":
+        raise HTTPException(status_code=404, detail="Not Found")
     url = service.resolve_url(short_code)
     if not url:
+        logger.warning(f"Shortened URL not found or expired: {short_code}")
         raise HTTPException(status_code=404, detail="Shortened URL not found or expired")
     return RedirectResponse(url.original_url)
 
