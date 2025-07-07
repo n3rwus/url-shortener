@@ -6,7 +6,7 @@ from pydantic import BaseModel, HttpUrl, Field
 class UrlsBase(BaseModel):
     original_url: HttpUrl = Field(..., description="User's HTTP/HTTPS link")
 
-class UrlsCreate(UrlsBase):
+class ShortenUrlRequest(UrlsBase):
     shortened_url: HttpUrl
 
 
