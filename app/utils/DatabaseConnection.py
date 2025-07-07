@@ -1,8 +1,10 @@
 import psycopg2
 from psycopg2 import OperationalError
 
+from app.core.logging_config import setup_logger
 from app.utils.SingletonMeta import SingletonMeta
 
+logger = setup_logger()
 
 class DatabaseConnection(metaclass=SingletonMeta):
 
@@ -30,6 +32,6 @@ class DatabaseConnection(metaclass=SingletonMeta):
     def close(self):
         if self.connection:
             self.connection.close()
-            print("Connection closed.")
+            logger.info("Connection closed.")
         else:
-            print("No connection to close.")
+            logger.info("No connection to close.")

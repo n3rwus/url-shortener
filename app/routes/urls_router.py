@@ -7,7 +7,7 @@ from app.core.cache import timed_cache
 from app.db.database import get_db
 from app.repositories.url_repository import UrlsRepository
 from app.service.url_service import UrlsService
-from app.shemas.shemas import UrlsResponse, UrlsCreateRequest
+from app.schemas.schema import UrlsResponse, UrlsCreateRequest
 from app.core.logging_config import setup_logger
 
 logger = setup_logger()
