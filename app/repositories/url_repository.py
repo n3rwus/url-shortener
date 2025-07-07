@@ -16,7 +16,7 @@ logger = setup_logger()
 settings = get_settings()
 
 def is_url_expired(url_obj: Urls) -> bool:
-    expired = url_obj.valid_until and datetime.datetime.now(datetime.timezone.utc) > url_obj.valid_until
+    expired = url_obj.valid_until is not None and datetime.datetime.now(datetime.timezone.utc) > url_obj.valid_until
     logger.debug(f"Checked expiration for {url_obj.shortened_url}: Expired={expired}")
     return expired
 
