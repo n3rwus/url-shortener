@@ -24,8 +24,7 @@ jobs:
 
       - name: Run Pylint and generate HTML report
         run: |
-#          pylint $(git ls-files '*.py') --output-format=json > pylint-report.json
-          pylint --exit-zero --output-format=json $(git ls-files '*.py') > pylint-report.json
+          pylint --exit-zero $(git ls-files '*.py') --output-format=json > pylint-report.json
           pylint-json2html -f json -o pylint-report.html pylint-report.json
 
       - name: Upload Pylint report
