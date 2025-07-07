@@ -15,10 +15,10 @@ class DatabaseConnection(metaclass=SingletonMeta):
                 port=port,
                 dbname=dbname
             )
-            print("Database connection established.")
+            logger.info("Database connection established.")
         except OperationalError as e:
-            print("Failed to connect to the database.")
-            print(f"Error: {e}")
+            logger.error("Failed to connect to the database.")
+            logger.error(f"Error: {e}")
             self.connection = None
 
     def get_cursor(self):
