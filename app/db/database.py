@@ -1,4 +1,6 @@
-from sqlmodel import Session, create_engine
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
 from app.core.config import get_settings
 
 settings = get_settings()
@@ -11,8 +13,24 @@ DATABASE_URL = (
     f"{settings.DBNAME}"
 )
 
-engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+# Create SQLAlchemy engine
+engine = create_engine(DATABASE_URL)
+# Create session factory
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
 
 def get_db():
-    with Session(engine) as session:
-        yield session
+    """
+    Dependency function to get a database session.
+
+    Yields:
+        SQLAlchemy session: Database session to execute queries
+
+    Notes:
+        Session is closed automatically after request is complete
+    """
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()

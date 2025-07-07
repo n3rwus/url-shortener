@@ -1,6 +1,9 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import SecretStr
 from functools import lru_cache
+from dotenv import load_dotenv
+
+load_dotenv()
 
 class Settings(BaseSettings):
     USER: str
