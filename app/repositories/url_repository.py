@@ -4,12 +4,21 @@ import time
 import uuid
 import datetime
 from typing import Optional, List
+
+from pydantic import HttpUrl
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.orm import Session
 from app.core.logging_config import setup_logger
 from app.models.models import Urls
 
 logger = setup_logger()
+
+
+def is_url_expired(url_obj: Urls) -> bool:
+    expired = url_obj.valid_until and datetime.datetime.now(datetime.timezone.utc) > url_obj.valid_until
+    logger.debug(f"Checked expiration for {url_obj.shortened_url}: Expired={expired}")
+    return expired
+
 
 class UrlsRepository:
 
@@ -30,14 +39,14 @@ class UrlsRepository:
             (Urls.valid_until == None) | (Urls.valid_until > datetime.datetime.now(datetime.timezone.utc))
         ).first()
 
-    def get_by_original(self, original_url: str) -> Optional[Urls]:
+    def get_by_original(self, original_url: HttpUrl) -> Optional[Urls]:
         logger.debug(f"Fetching URL by original: {original_url}")
         return self.db.query(Urls).filter(
             Urls.original_url == original_url,
             (Urls.valid_until == None) | (Urls.valid_until > datetime.datetime.now(datetime.timezone.utc))
         ).first()
 
-    def create_url(self, original_url: str, valid_until: Optional[datetime.datetime] = None) -> Urls:
+    def create_url(self, original_url: HttpUrl, valid_until: Optional[datetime.datetime] = None) -> Urls:
         logger.info(f"Attempting to create or reuse shortened URL for: {original_url}")
         existing_url = self.get_by_original(original_url)
 
@@ -88,11 +97,6 @@ class UrlsRepository:
         self.db.refresh(url_obj)
         logger.debug(f"Incremented clicks for {url_obj.shortened_url}. Total now: {url_obj.clicks}")
         return url_obj
-
-    def is_url_expired(self, url_obj: Urls) -> bool:
-        expired = url_obj.valid_until and datetime.datetime.now(datetime.timezone.utc) > url_obj.valid_until
-        logger.debug(f"Checked expiration for {url_obj.shortened_url}: Expired={expired}")
-        return expired
 
     def get_all_urls(self, skip: int = 0, limit: int = 100) -> List[Urls]:
         logger.debug(f"Fetching all URLs with skip={skip} and limit={limit}")
