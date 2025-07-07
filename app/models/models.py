@@ -13,5 +13,5 @@ class Urls(Base):
     shortened_url = Column(String(50), unique=True, nullable=False, index=True)
     clicks = Column(Integer, default=0, nullable=False)
     created = Column(DateTime, default=func.now())
-    updated = Column(DateTime, default=func.now())
+    updated = Column(DateTime, default=func.now(), onupdate=func.now())
     valid_until = Column(DateTime, nullable=True)
