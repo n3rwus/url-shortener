@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, RedirectResponse
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
 import uuid
@@ -14,7 +14,6 @@ router = APIRouter(tags=["Urls"])
 def get_service(db: Session = Depends(get_db)) -> UrlsService:
     return UrlsService(UrlsRepository(db))
 
-# Create a shortened URL
 @router.post("/urls", response_model=UrlsResponse, status_code=status.HTTP_201_CREATED)
 def add_url(url_data: UrlsCreateRequest, service: UrlsService = Depends(get_service)):
     url = service.shorten_url(
@@ -23,14 +22,12 @@ def add_url(url_data: UrlsCreateRequest, service: UrlsService = Depends(get_serv
     )
     return UrlsResponse.model_validate(url)
 
-# Get all URLs (cached)
 @router.get("/urls", response_model=List[UrlsResponse])
 @timed_cache(seconds=300)
 async def get_urls(service: UrlsService = Depends(get_service)):
     urls = await service.get_all_urls()
     return [UrlsResponse.model_validate(url) for url in urls]
 
-# Resolve a shortened URL (increments clicks)
 @router.get("/urls/{shortened}", response_model=UrlsResponse)
 def resolve_url(shortened: str, service: UrlsService = Depends(get_service)):
     url = service.resolve_url(shortened)
@@ -38,7 +35,6 @@ def resolve_url(shortened: str, service: UrlsService = Depends(get_service)):
         raise HTTPException(status_code=404, detail="Shortened URL not found or expired")
     return UrlsResponse.model_validate(url)
 
-# Get by ID
 @router.get("/urls/id/{url_id}", response_model=UrlsResponse)
 def get_by_id(url_id: uuid.UUID, service: UrlsService = Depends(get_service)):
     url = service.get_url_by_id(url_id)
@@ -46,14 +42,12 @@ def get_by_id(url_id: uuid.UUID, service: UrlsService = Depends(get_service)):
         raise HTTPException(status_code=404, detail="URL not found")
     return UrlsResponse.model_validate(url)
 
-# Delete by shortened URL
 @router.delete("/urls/{shortened}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_url(shortened: str, service: UrlsService = Depends(get_service)):
     deleted = service.delete_url(shortened)
     if not deleted:
         raise HTTPException(status_code=404, detail="URL not found or already deleted")
 
-# Check if URL is expired
 @router.get("/urls/{shortened}/expired", response_model=bool)
 def check_expiration(shortened: str, service: UrlsService = Depends(get_service)):
     expired = service.is_url_expired(shortened)
@@ -61,7 +55,6 @@ def check_expiration(shortened: str, service: UrlsService = Depends(get_service)
         raise HTTPException(status_code=404, detail="URL not found")
     return expired
 
-# Redirect short code to original URL (like TinyURL)
 @router.get("/{short_code}")
 def redirect_short_url(short_code: str, service: UrlsService = Depends(get_service)):
     url = service.resolve_url(short_code)

@@ -1,8 +1,7 @@
 from sqlalchemy import Column, Integer, String, DateTime, UUID
-from sqlalchemy.orm import declarative_base
 from sqlalchemy.sql import func
+from app.db.database import Base
 
-Base = declarative_base()
 
 class Urls(Base):
     __tablename__ = "urls"
