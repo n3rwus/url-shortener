@@ -1,12 +1,11 @@
 import random
 import string
 import time
-import uuid
 import datetime
-from typing import Optional, List
+from typing import Optional
 
 from sqlalchemy import or_
-from sqlalchemy.exc import SQLAlchemyError, IntegrityError
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from app.core.logging_config import setup_logger
 from app.core.config import get_settings

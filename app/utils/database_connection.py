@@ -9,6 +9,7 @@ logger = setup_logger()
 class DatabaseConnection(metaclass=SingletonMeta):
 
     def __init__(self, user, password, host, port, dbname):
+        self.connection = None
         try:
             self.connection = psycopg2.connect(
                 user=user,

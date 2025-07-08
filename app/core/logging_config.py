@@ -9,7 +9,7 @@ def setup_logger():
     including colorized output for different log levels.
     """
     logger = logging.getLogger()  # Root logger
-    logger.setLevel(logging.DEBUG)  # Set root logger to DEBUG to capture all levels
+    logger.setLevel(logging.INFO)  # Set root logger to DEBUG to capture all levels
 
     stream_handler = logging.StreamHandler(sys.stdout)
     stream_handler.setLevel(logging.INFO)  # Set the logging level for the stream handler
