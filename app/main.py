@@ -12,7 +12,6 @@ def create_app():
     application = FastAPI(
         title="URL Shortener API",
         version="0.0.1",
-        servers=[{"url": "http://127.0.0.1:8000"}]
     )
 
     origins = [
@@ -33,7 +32,7 @@ def create_app():
 
     application.include_router(urls_router.router)
 
-    @app.get("/health")
+    @application.get("/v1/health")
     def health_check():
         return JSONResponse(content={"status": "ok"}, status_code=status.HTTP_200_OK)
 
