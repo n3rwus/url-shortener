@@ -6,7 +6,7 @@
 ![Python Version](https://img.shields.io/badge/python-3.11%2B-blue.svg)
 ![FastAPI Version](https://img.shields.io/badge/FastAPI-2.0%2B-green.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![Code Coverage](https://codecov.io/gh/n3rwus/url-shortener/branch/main/graph/badge.svg)
+[![Codecov](https://codecov.io/github/n3rwus/url-shortener/branch/main/graph/badge.svg?token=RMAMAXML9G)](https://codecov.io/github/n3rwus/url-shortener)
 
 
 A simple, fast, and secure URL shortener built with Flask. Transform long URLs into short, manageable links with analytics and custom aliases support.
