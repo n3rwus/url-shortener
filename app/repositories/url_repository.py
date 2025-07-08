@@ -37,23 +37,6 @@ class UrlsRepository:
             )
         ).first()
 
-    def get_by_id(self, url_id: uuid.UUID) -> Optional[Urls]:
-        logger.debug(f"Fetching URL by ID: {url_id}")
-        return self.db.query(Urls).filter(
-            Urls.id == url_id,
-            (Urls.valid_until == None) | (Urls.valid_until > datetime.datetime.now(datetime.timezone.utc))
-        ).first()
-
-    def get_by_original(self, original_url: str) -> Optional[Urls]:
-        logger.debug(f"Fetching URL by original: {original_url}")
-        return self.db.query(Urls).filter(
-            Urls.original_url == original_url,
-            or_(
-                Urls.valid_until == None,
-                Urls.valid_until > datetime.datetime.now(datetime.timezone.utc)
-            )
-        ).first()
-
     def create_url(self, original_url: str, valid_until: Optional[datetime.datetime] = None) -> Urls:
         logger.info(f"Attempting to create or reuse shortened URL for: {original_url}")
 
@@ -83,17 +66,6 @@ class UrlsRepository:
             logger.error(f"Failed to create shortened URL: {e}")
             raise
 
-    def delete_url(self, url_obj: Urls) -> bool:
-        try:
-            logger.info(f"Deleting URL: {url_obj.shortened_url}")
-            self.db.delete(url_obj)
-            self.db.commit()
-            return True
-        except (SQLAlchemyError, IntegrityError) as e:
-            self.db.rollback()
-            logger.error(f"Failed to delete URL {url_obj.id}: {e}")
-            return False
-
     def increment_clicks(self, url_obj: Urls) -> Urls:
         url_obj.clicks += 1
         url_obj.updated = datetime.datetime.now(datetime.timezone.utc)
@@ -101,10 +73,6 @@ class UrlsRepository:
         self.db.refresh(url_obj)
         logger.debug(f"Incremented clicks for {url_obj.shortened_url}. Total now: {url_obj.clicks}")
         return url_obj
-
-    def get_all_urls(self, skip: int = 0, limit: int = 100) -> List[Urls]:
-        logger.debug(f"Fetching all URLs with skip={skip} and limit={limit}")
-        return self.db.query(Urls).offset(skip).limit(limit).all()
 
     def _generate_unique_short(self, length=6) -> str:
         logger.debug("Generating unique shortened URL")
