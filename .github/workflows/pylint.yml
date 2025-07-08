@@ -24,11 +24,11 @@ jobs:
 
       - name: Run Pylint and generate HTML report
         run: |
-          pylint --exit-zero $(git ls-files '*.py') --output-format=json > pylint-report.json
-          pylint-json2html -f json -o pylint-report.html pylint-report.json
+          pylint --exit-zero $(git ls-files '*.py') --output-format=json > pylint-report-${{ matrix.python-version }}.json
+          pylint-json2html -f json -o pylint-report-${{ matrix.python-version }}.html pylint-report-${{ matrix.python-version }}.json
 
       - name: Upload Pylint report
         uses: actions/upload-artifact@v4
         with:
-          name: pylint-report
-          path: pylint-report.html
+          name: pylint-report-${{ matrix.python-version }}
+          path: pylint-report-${{ matrix.python-version }}.html

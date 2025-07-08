@@ -1,5 +1,6 @@
 from urllib.parse import urlparse
 from fastapi import APIRouter, Depends, HTTPException, status
+from pygments.lexer import include
 from sqlalchemy.orm import Session
 from fastapi.responses import RedirectResponse
 from app.integration.blacklist import fetch_blacklist, BlacklistUnavailableError
@@ -59,14 +60,25 @@ async def shorten_url(payload: UrlsCreateRequest,service: UrlsService = Depends(
 
     return UrlsResponse.model_validate(parsed)
 
+
+@router.get(
+    "/{short_code:str}",
+    status_code=307,
+    response_class=RedirectResponse,
+    responses={307: {"description": "Redirects to the original URL"}},
+    summary="Redirect to the original URL",
+    description="Redirects a short code to its destination URL if it exists and is valid.",
+)
 @timed_cache(seconds=300)
-@router.get("/{short_code}")
 def redirect_short_url(short_code: str, service: UrlsService = Depends(get_service)):
-    if short_code == "favicon.ico":
+    if short_code == "favicon.ico":  # optional: filters out browser noise
         raise HTTPException(status_code=404, detail="Not Found")
+
     url = service.resolve_url(short_code)
     if not url:
         logger.warning(f"Shortened URL not found or expired: {short_code}")
         raise HTTPException(status_code=404, detail="Shortened URL not found or expired")
-    return RedirectResponse(url.original_url)
+
+    return RedirectResponse(url.original_url, status_code=status.HTTP_302_FOUND)
+
 
