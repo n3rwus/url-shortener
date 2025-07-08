@@ -18,7 +18,8 @@ def get_service(db: Session = Depends(get_db)) -> UrlsService:
     return UrlsService(UrlsRepository(db))
 
 @router.post("/urls", response_model=UrlsResponse, status_code=status.HTTP_201_CREATED)
-async def shorten_url(payload: UrlsCreateRequest, service: UrlsService = Depends(get_service)):
+async def shorten_url(payload: UrlsCreateRequest,service: UrlsService = Depends(get_service)):
+
     parsed_url = urlparse(payload.original_url)
 
     if parsed_url.scheme not in {"http", "https"}:
