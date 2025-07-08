@@ -1,3 +1,4 @@
+import inspect
 from functools import wraps
 from typing import Dict, List, Any, Callable
 from datetime import datetime, timedelta
@@ -22,29 +23,40 @@ def timed_cache(seconds: int = 300):
     """
 
     def decorator(func: Callable):
+        is_async = inspect.iscoroutinefunction(func)
+
         @wraps(func)
-        async def wrapper(*args, **kwargs):
-            # Create a cache key from function name and arguments
-            key_parts = [func.__name__]
-            key_parts.extend([str(arg) for arg in args])
-            key_parts.extend([f"{k}:{v}" for k, v in kwargs.items()])
-            cache_key = ":".join(key_parts)
+        async def async_wrapper(*args, **kwargs):
+            cache_key = f"{func.__name__}:{args}:{kwargs}"
 
-            # Check if the result is in cache and not expired
             if cache_key in cache:
-                cached_data = cache[cache_key]
-                if datetime.now() < cached_data["expiry"]:
-                    return cached_data["data"]
+                cached = cache[cache_key]
+                if datetime.now() < cached["expiry"]:
+                    return cached["data"]
 
-            # Execute the function and cache the result
             result = await func(*args, **kwargs)
             cache[cache_key] = {
                 "data": result,
-                "expiry": datetime.now() + timedelta(seconds=seconds)
+                "expiry": datetime.now() + timedelta(seconds=seconds),
             }
-
             return result
 
-        return wrapper
+        @wraps(func)
+        def sync_wrapper(*args, **kwargs):
+            cache_key = f"{func.__name__}:{args}:{kwargs}"
+
+            if cache_key in cache:
+                cached = cache[cache_key]
+                if datetime.now() < cached["expiry"]:
+                    return cached["data"]
+
+            result = func(*args, **kwargs)
+            cache[cache_key] = {
+                "data": result,
+                "expiry": datetime.now() + timedelta(seconds=seconds),
+            }
+            return result
+
+        return async_wrapper if is_async else sync_wrapper
 
     return decorator

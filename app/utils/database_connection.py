@@ -2,7 +2,7 @@ import psycopg2
 from psycopg2 import OperationalError
 
 from app.core.logging_config import setup_logger
-from app.utils.SingletonMeta import SingletonMeta
+from app.utils.singleton_meta import SingletonMeta
 
 logger = setup_logger()
 

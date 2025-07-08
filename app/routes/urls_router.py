@@ -1,8 +1,9 @@
+from urllib.parse import urlparse
 from fastapi import APIRouter, Depends, HTTPException, status
+from pygments.lexer import include
 from sqlalchemy.orm import Session
-from typing import List
-import uuid
 from fastapi.responses import RedirectResponse
+from app.integration.blacklist import fetch_blacklist, BlacklistUnavailableError
 from app.core.cache import timed_cache
 from app.db.database import get_db
 from app.repositories.url_repository import UrlsRepository
@@ -18,61 +19,66 @@ def get_service(db: Session = Depends(get_db)) -> UrlsService:
     return UrlsService(UrlsRepository(db))
 
 @router.post("/urls", response_model=UrlsResponse, status_code=status.HTTP_201_CREATED)
-def add_url(url_data: UrlsCreateRequest, service: UrlsService = Depends(get_service)):
-    url = service.shorten_url(
-        original_url=url_data.original_url,
-        valid_until=url_data.valid_until
-    )
-    if url is None:
-        logger.warning("No URL object returned — cannot validate.")
+async def shorten_url(payload: UrlsCreateRequest,service: UrlsService = Depends(get_service)):
+
+    parsed_url = urlparse(payload.original_url)
+
+    if parsed_url.scheme not in {"http", "https"}:
         raise HTTPException(
-            status_code=400,
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="URL must start with http or https."
+        )
+
+    try:
+        blacklist = await fetch_blacklist()
+    except BlacklistUnavailableError:
+        logger.error("Cannot validate domain: blacklist unavailable.")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Unable to validate domain against blacklist at this time. Please try again later."
+        )
+
+    domain = parsed_url.netloc.lower()
+    if domain in blacklist:
+        logger.info(f"Rejected blacklisted domain: {domain}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"The domain '{domain}' is blacklisted."
+        )
+
+    parsed = service.shorten_url(
+        original_url=payload.original_url,
+        valid_until=payload.valid_until
+    )
+
+    if parsed is None:
+        logger.warning("No URL object returned — likely duplicate.")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail="A shortened URL for this link already exists"
         )
 
-    return UrlsResponse.model_validate(url)
+    return UrlsResponse.model_validate(parsed)
 
 
-@router.get("/urls", response_model=List[UrlsResponse])
+@router.get(
+    "/{short_code:str}",
+    status_code=307,
+    response_class=RedirectResponse,
+    responses={307: {"description": "Redirects to the original URL"}},
+    summary="Redirect to the original URL",
+    description="Redirects a short code to its destination URL if it exists and is valid.",
+)
 @timed_cache(seconds=300)
-async def get_urls(service: UrlsService = Depends(get_service)):
-    urls = await service.get_all_urls()
-    return [UrlsResponse.model_validate(url) for url in urls]
-
-@router.get("/urls/{shortened}", response_model=UrlsResponse)
-def resolve_url(shortened: str, service: UrlsService = Depends(get_service)):
-    url = service.resolve_url(shortened)
-    if not url:
-        raise HTTPException(status_code=404, detail="Shortened URL not found or expired")
-    return UrlsResponse.model_validate(url)
-
-@router.get("/urls/id/{url_id}", response_model=UrlsResponse)
-def get_by_id(url_id: uuid.UUID, service: UrlsService = Depends(get_service)):
-    url = service.get_url_by_id(url_id)
-    if not url:
-        raise HTTPException(status_code=404, detail="URL not found")
-    return UrlsResponse.model_validate(url)
-
-@router.delete("/urls/{shortened}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_url(shortened: str, service: UrlsService = Depends(get_service)):
-    deleted = service.delete_url(shortened)
-    if not deleted:
-        raise HTTPException(status_code=404, detail="URL not found or already deleted")
-
-@router.get("/urls/{shortened}/expired", response_model=bool)
-def check_expiration(shortened: str, service: UrlsService = Depends(get_service)):
-    expired = service.is_url_expired(shortened)
-    if expired is None:
-        raise HTTPException(status_code=404, detail="URL not found")
-    return expired
-
-@router.get("/{short_code:path}")
 def redirect_short_url(short_code: str, service: UrlsService = Depends(get_service)):
-    if short_code == "favicon.ico":
+    if short_code == "favicon.ico":  # optional: filters out browser noise
         raise HTTPException(status_code=404, detail="Not Found")
+
     url = service.resolve_url(short_code)
     if not url:
         logger.warning(f"Shortened URL not found or expired: {short_code}")
         raise HTTPException(status_code=404, detail="Shortened URL not found or expired")
-    return RedirectResponse(url.original_url)
+
+    return RedirectResponse(url.original_url, status_code=status.HTTP_302_FOUND)
+
 

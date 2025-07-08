@@ -37,27 +37,10 @@ class UrlsRepository:
             )
         ).first()
 
-    def get_by_id(self, url_id: uuid.UUID) -> Optional[Urls]:
-        logger.debug(f"Fetching URL by ID: {url_id}")
-        return self.db.query(Urls).filter(
-            Urls.id == url_id,
-            (Urls.valid_until == None) | (Urls.valid_until > datetime.datetime.now(datetime.timezone.utc))
-        ).first()
-
-    def get_by_original(self, original_url: str) -> Optional[Urls]:
-        logger.debug(f"Fetching URL by original: {original_url}")
-        return self.db.query(Urls).filter(
-            Urls.original_url == original_url,
-            or_(
-                Urls.valid_until == None,
-                Urls.valid_until > datetime.datetime.now(datetime.timezone.utc)
-            )
-        ).first()
-
     def create_url(self, original_url: str, valid_until: Optional[datetime.datetime] = None) -> Urls:
         logger.info(f"Attempting to create or reuse shortened URL for: {original_url}")
 
-        existing_url = self.get_by_original(original_url)
+        existing_url = self._get_by_original(original_url)
         if existing_url:
             logger.info(f"Found existing valid URL. Returning with short code: {existing_url.shortened_url}")
             return existing_url
@@ -79,20 +62,9 @@ class UrlsRepository:
             self.db.rollback()
             if 'urls_original_url_key' in str(e.orig):
                 logger.warning("URL already exists. Fetching and returning the existing entry.")
-                return self.get_by_original(original_url)
+                return self._get_by_original(original_url)
             logger.error(f"Failed to create shortened URL: {e}")
             raise
-
-    def delete_url(self, url_obj: Urls) -> bool:
-        try:
-            logger.info(f"Deleting URL: {url_obj.shortened_url}")
-            self.db.delete(url_obj)
-            self.db.commit()
-            return True
-        except (SQLAlchemyError, IntegrityError) as e:
-            self.db.rollback()
-            logger.error(f"Failed to delete URL {url_obj.id}: {e}")
-            return False
 
     def increment_clicks(self, url_obj: Urls) -> Urls:
         url_obj.clicks += 1
@@ -101,10 +73,6 @@ class UrlsRepository:
         self.db.refresh(url_obj)
         logger.debug(f"Incremented clicks for {url_obj.shortened_url}. Total now: {url_obj.clicks}")
         return url_obj
-
-    def get_all_urls(self, skip: int = 0, limit: int = 100) -> List[Urls]:
-        logger.debug(f"Fetching all URLs with skip={skip} and limit={limit}")
-        return self.db.query(Urls).offset(skip).limit(limit).all()
 
     def _generate_unique_short(self, length=6) -> str:
         logger.debug("Generating unique shortened URL")
@@ -121,4 +89,14 @@ class UrlsRepository:
         fallback_code = timestamp + random_fallback
         logger.warning(f"Fallback to timestamp-based code: {fallback_code}")
         return fallback_code
+
+    def _get_by_original(self, original_url: str) -> Optional[Urls]:
+        logger.debug(f"Fetching URL by original: {original_url}")
+        return self.db.query(Urls).filter(
+            Urls.original_url == original_url,
+            or_(
+                Urls.valid_until == None,
+                Urls.valid_until > datetime.datetime.now(datetime.timezone.utc)
+            )
+        ).first()
 
