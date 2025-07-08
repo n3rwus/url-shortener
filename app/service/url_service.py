@@ -1,8 +1,6 @@
-from typing import Optional, List
+from typing import Optional
 from datetime import datetime
-import uuid
-
-from app.repositories.url_repository import UrlsRepository, is_url_expired
+from app.repositories.url_repository import UrlsRepository
 from app.models.models import Urls
 from app.core.logging_config import setup_logger
 
