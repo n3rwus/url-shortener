@@ -14,9 +14,9 @@ def create_app():
     application = FastAPI(
         title="URL Shortener API",
         version="0.0.1",
-        docs_url="/docs" if settings.ENABLE_DOCS else None,
-        redoc_url="/redoc" if settings.ENABLE_DOCS else None,
-        openapi_url="/openapi.json" if settings.ENABLE_DOCS else None
+        docs_url="/docs" if settings.ENV else None,
+        redoc_url="/redoc" if settings.ENV else None,
+        openapi_url="/openapi.json" if settings.ENV else None
     )
 
     origins = [
