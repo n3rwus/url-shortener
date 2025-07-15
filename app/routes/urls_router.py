@@ -1,5 +1,5 @@
 from urllib.parse import urlparse
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from fastapi.responses import RedirectResponse
 from app.integration.blacklist import fetch_blacklist, BlacklistUnavailableError
