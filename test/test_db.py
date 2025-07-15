@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from app.db.database import get_db
+from app.db.sql_database import get_db
 
 def test_get_db_yields_session():
     # Manually call the generator

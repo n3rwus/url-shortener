@@ -2,7 +2,7 @@ import uuid
 
 from sqlalchemy import Column, Integer, String, DateTime, UUID
 from sqlalchemy.sql import func
-from app.db.database import Base
+from app.db.sql_database import Base
 
 
 class Urls(Base):

@@ -230,6 +230,8 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+app/secrets/
+secrets.bak/
 
 # Spyder project settings
 .spyderproject
