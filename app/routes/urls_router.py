@@ -1,10 +1,10 @@
 from urllib.parse import urlparse
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from fastapi.responses import RedirectResponse
 from app.integration.blacklist import fetch_blacklist, BlacklistUnavailableError
 from app.core.cache import timed_cache
-from app.db.database import get_db
+from app.db.sql_database import get_db
 from app.repositories.url_repository import UrlsRepository
 from app.service.url_service import UrlsService
 from app.schemas.schema import UrlsResponse, UrlsCreateRequest
@@ -17,8 +17,12 @@ router = APIRouter(tags=["Urls"])
 def get_service(db: Session = Depends(get_db)) -> UrlsService:
     return UrlsService(UrlsRepository(db))
 
-@router.post("/urls", response_model=UrlsResponse, status_code=status.HTTP_201_CREATED)
-async def shorten_url(payload: UrlsCreateRequest,service: UrlsService = Depends(get_service)):
+@router.post("/urls",
+             response_model=UrlsResponse,
+             status_code=status.HTTP_201_CREATED)
+async def shorten_url(
+        payload: UrlsCreateRequest,
+        service: UrlsService = Depends(get_service)):
 
     parsed_url = urlparse(payload.original_url)
 
@@ -58,7 +62,6 @@ async def shorten_url(payload: UrlsCreateRequest,service: UrlsService = Depends(
         )
 
     return UrlsResponse.model_validate(parsed)
-
 
 @router.get(
     "/{short_code:str}",

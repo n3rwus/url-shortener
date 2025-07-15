@@ -5,7 +5,7 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.db.database import Base
+from app.db.sql_database import Base
 from app.models.models import Urls  # Adjust path to your Urls model
 
 
