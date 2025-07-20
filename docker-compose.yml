@@ -1,0 +1,38 @@
+version: '3.9'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      secrets:
+        - db_user
+        - db_password
+        - db_host
+        - db_port
+        - db_name
+        - base_url
+    ports:
+      - "8000:8000"
+    environment:
+      REDIS_URL: redis://redis:6379
+      ENV: production
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/v1/health"]
+      interval: 30s
+      timeout: 30s
+      retries: 3
+
+secrets:
+  db_user:
+    file: app/secrets/db_user
+  db_password:
+    file: app/secrets/db_password
+  db_host:
+    file: app/secrets/db_host
+  db_port:
+    file: app/secrets/db_port
+  db_name:
+    file: app/secrets/db_name
+  base_url:
+    file: app/secrets/base_url
