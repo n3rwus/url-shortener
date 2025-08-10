@@ -1,47 +1,157 @@
-# This workflow uses actions that are not certified by GitHub.
-# They are provided by a third-party and are governed by
-# separate terms of service, privacy policy, and support
-# documentation.
-# hadoint is a Dockerfile linter written in Haskell
-# that helps you build best practice Docker images.
-# More details at https://github.com/hadolint/hadolint
-
+# .github/workflows/hadolint.yml
 name: Hadolint
 
 on:
   push:
     branches: [ "*" ]
   pull_request:
-    # The branches below must be a subset of the branches above
     branches: [ "main" ]
   schedule:
-    - cron: '39 18 * * 6'
+    - cron: "39 18 * * 6"
 
 permissions:
   contents: read
 
 jobs:
   hadolint:
-    name: Run hadolint scanning
+    name: Run hadolint scanning (${{ matrix.dockerfile }})
     runs-on: ubuntu-latest
     permissions:
-      contents: read # for actions/checkout to fetch code
-      security-events: write # for github/codeql-action/upload-sarif to upload SARIF results
-      actions: read # only required for a private repository by github/codeql-action/upload-sarif to get the Action run status
+      contents: read
+      security-events: write     # needed for SARIF upload (Code Scanning)
+      actions: read              # needed for private repos (upload-sarif run status)
+      pull-requests: write       # to post/update PR comment summary
+    strategy:
+      fail-fast: false
+      matrix:
+        # Add more Dockerfile paths here if needed, e.g.:
+        # ["./Dockerfile", "./docker/app.Dockerfile", "./services/api/Dockerfile"]
+        dockerfile: ["./Dockerfile"]
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Run hadolint
-        uses: hadolint/hadolint-action@f988afea3da57ee48710a9795b6bb677cc901183
+        uses: hadolint/hadolint-action@v3
         with:
-          dockerfile: ./Dockerfile
+          dockerfile: ${{ matrix.dockerfile }}
           format: sarif
           output-file: hadolint-results.sarif
-          no-fail: true
+          no-fail: true  # don't fail the job, we surface results in SARIF and summaries
 
-      - name: Upload analysis results to GitHub
+      - name: Upload SARIF to GitHub Code Scanning
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: hadolint-results.sarif
           wait-for-processing: true
+
+      - name: Write job summary
+        if: always()
+        run: |
+          echo "### Hadolint results for \`${{ matrix.dockerfile }}\`" >> "$GITHUB_STEP_SUMMARY"
+
+          if [ ! -s hadolint-results.sarif ]; then
+            echo "- No SARIF file produced." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          total=$(jq '[.runs[].results[]] | length' hadolint-results.sarif 2>/dev/null || echo 0)
+          errors=$(jq '[.runs[].results[] | select(.level=="error")] | length' hadolint-results.sarif 2>/dev/null || echo 0)
+          warnings=$(jq '[.runs[].results[] | select(.level=="warning")] | length' hadolint-results.sarif 2>/dev/null || echo 0)
+          notes=$(jq '[.runs[].results[] | select(.level=="note")] | length' hadolint-results.sarif 2>/dev/null || echo 0)
+
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Total findings: ${total}" >> "$GITHUB_STEP_SUMMARY"
+          echo "  - Errors: ${errors}" >> "$GITHUB_STEP_SUMMARY"
+          echo "  - Warnings: ${warnings}" >> "$GITHUB_STEP_SUMMARY"
+          echo "  - Notes: ${notes}" >> "$GITHUB_STEP_SUMMARY"
+
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Top rules (up to 5):**" >> "$GITHUB_STEP_SUMMARY"
+          jq -r '.runs[].results[].ruleId' hadolint-results.sarif 2>/dev/null \
+            | sort | uniq -c | sort -nr | head -5 \
+            | awk '{printf "- %s × %s\n", $1, $2}' >> "$GITHUB_STEP_SUMMARY" || true
+
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Sample findings:**" >> "$GITHUB_STEP_SUMMARY"
+          jq -r '
+            .runs[].results[] |
+            "- " + (.ruleId // "rule?") + " (" + (.level // "level?") + "): " +
+            (.message.text // "no message") +
+            if (.locations[0].physicalLocation.artifactLocation.uri and .locations[0].physicalLocation.region.startLine)
+              then " — " + .locations[0].physicalLocation.artifactLocation.uri + ":" + (.locations[0].physicalLocation.region.startLine|tostring)
+              else ""
+            end
+          ' hadolint-results.sarif 2>/dev/null | head -10 >> "$GITHUB_STEP_SUMMARY" || true
+
+      - name: Comment summary on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        env:
+          DOCKERFILE_PATH: ${{ matrix.dockerfile }}
+        with:
+          script: |
+            const fs = require('fs');
+            const path = 'hadolint-results.sarif';
+            const dockerfile = process.env.DOCKERFILE_PATH;
+            let total = 0, errors = 0, warnings = 0, notes = 0, topRules = [], sample = [];
+            if (fs.existsSync(path) && fs.statSync(path).size > 0) {
+              const sarif = JSON.parse(fs.readFileSync(path, 'utf8'));
+              const results = sarif.runs?.flatMap(r => r.results || []) || [];
+              total = results.length;
+              errors = results.filter(r => r.level === 'error').length;
+              warnings = results.filter(r => r.level === 'warning').length;
+              notes = results.filter(r => r.level === 'note').length;
+
+              const counts = {};
+              for (const r of results) counts[r.ruleId || 'unknown'] = (counts[r.ruleId || 'unknown'] || 0) + 1;
+              topRules = Object.entries(counts).sort((a,b) => b[1]-a[1]).slice(0,5);
+
+              sample = results.slice(0, 10).map(r => {
+                const loc = r.locations?.[0]?.physicalLocation;
+                const file = loc?.artifactLocation?.uri;
+                const line = loc?.region?.startLine;
+                return `- ${r.ruleId || 'rule?'} (${r.level || 'level?'}): ${r.message?.text || 'no message'}${file && line ? ` — ${file}:${line}` : ''}`;
+              });
+            }
+            const marker = `<!-- hadolint-summary-${dockerfile} -->`;
+            const body = [
+              marker,
+              `### Hadolint results for \`${dockerfile}\``,
+              ``,
+              `- Total findings: ${total}`,
+              `  - Errors: ${errors}`,
+              `  - Warnings: ${warnings}`,
+              `  - Notes: ${notes}`,
+              ``,
+              `**Top rules (up to 5):**`,
+              ...(topRules.length ? topRules.map(([rule, count]) => `- ${count} × ${rule}`) : ['- None']),
+              ``,
+              `**Sample findings:**`,
+              ...(sample.length ? sample : ['- None'])
+            ].join('\n');
+
+            // Find an existing sticky comment to update
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find(c => c.user.type === 'Bot' && c.body && c.body.includes(marker));
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body
+              });
+            }
